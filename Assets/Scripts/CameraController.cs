@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI; // For UI elements like black bars
+using System.Collections; // For Coroutine usage
 
 public class CameraController : MonoBehaviour
 {
@@ -8,8 +9,10 @@ public class CameraController : MonoBehaviour
     public Vector3 offset;                // Offset for camera's position
     public float centerSmoothingFactor = 2f; // Smoothing factor for centering the camera
     public GameObject blackBarsPrefab;    // Prefab for black bars (UI overlay)
+    public float fadeDuration = 0.5f;       // Duration for the fade effect
 
     private GameObject blackBars;         // Reference to instantiated black bars
+    private CanvasGroup blackBarsCanvasGroup; // Reference to CanvasGroup for fading
     private bool isCinematicMode = false; // Toggles cinematic mode on/off
     private bool isCameraCentered = false; // Flag to check if the camera is centered behind the player
 
@@ -20,11 +23,18 @@ public class CameraController : MonoBehaviour
 
     void Start()
     {
-        // Instantiate black bars but keep them hidden initially
+        // Instantiate black bars and keep them hidden initially
         if (blackBarsPrefab != null)
         {
             blackBars = Instantiate(blackBarsPrefab);
             blackBars.SetActive(false); // Hide black bars at the start
+
+            // Get the CanvasGroup component attached to the black bars prefab
+            blackBarsCanvasGroup = blackBars.GetComponent<CanvasGroup>();
+            if (blackBarsCanvasGroup == null)
+            {
+                blackBarsCanvasGroup = blackBars.AddComponent<CanvasGroup>(); // Add CanvasGroup if it doesn't exist
+            }
         }
     }
 
@@ -90,14 +100,50 @@ public class CameraController : MonoBehaviour
         {
             isCinematicMode = !isCinematicMode; // Toggle cinematic mode
 
-            if (blackBars != null)
+            // Trigger the fade effect based on the mode change
+            if (isCinematicMode)
             {
-                blackBars.SetActive(isCinematicMode); // Show or hide black bars based on mode
+                StartCoroutine(FadeInBlackBars()); // Fade in the black bars
+            }
+            else
+            {
+                StartCoroutine(FadeOutBlackBars()); // Fade out the black bars
             }
 
             // Toggle camera centered state when Q is pressed
             isCameraCentered = !isCameraCentered;
         }
+    }
+
+    IEnumerator FadeInBlackBars()
+    {
+        blackBars.SetActive(true); // Ensure black bars are active
+        float timeElapsed = 0f;
+
+        // Gradually fade in the black bars by changing the CanvasGroup's alpha
+        while (timeElapsed < fadeDuration)
+        {
+            blackBarsCanvasGroup.alpha = Mathf.Lerp(0f, 1f, timeElapsed / fadeDuration);
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+        blackBarsCanvasGroup.alpha = 1f; // Ensure it's fully opaque
+    }
+
+    IEnumerator FadeOutBlackBars()
+    {
+        float timeElapsed = 0f;
+
+        // Gradually fade out the black bars by changing the CanvasGroup's alpha
+        while (timeElapsed < fadeDuration)
+        {
+            blackBarsCanvasGroup.alpha = Mathf.Lerp(1f, 0f, timeElapsed / fadeDuration);
+            timeElapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        blackBarsCanvasGroup.alpha = 0f; // Ensure it's fully transparent
+        blackBars.SetActive(false); // Optionally deactivate the black bars once faded out
     }
 
     void HandleCinematicCameraBehindPlayer()
@@ -196,12 +242,9 @@ public class CameraController : MonoBehaviour
 
         // Use the camera's local directions (forward and right) for movement alignment
         Vector3 forwardMovement = transform.forward * verticalInput; // Forward/backward movement
-        Vector3 rightMovement = transform.right * horizontalInput;  // Left/right movement
+        Vector3 rightMovement = transform.right * horizontalInput;
 
-        // Combine movements and normalize to avoid faster diagonal movement
-        Vector3 movement = (forwardMovement + rightMovement).normalized;
-
-        // Move the player using the calculated movement vector
-        player.Translate(movement * Time.deltaTime * 5f, Space.World); // Adjust movement speed as needed
     }
-}
+}  // Left/right movement
+
+        // Combine movements and normalize to avoid
